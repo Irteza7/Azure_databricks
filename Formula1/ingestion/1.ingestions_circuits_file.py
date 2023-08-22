@@ -4,13 +4,13 @@
 
 # COMMAND ----------
 
-# MAGIC %fs
-# MAGIC ls /mnt/formula1dlik/processed/circuits
+dbutils.widgets.text("p_data_source", "")
+v_data_source = dbutils.widgets.get("p_data_source")
 
 # COMMAND ----------
 
-dbutils.widgets.text("p_data_source", "")
-v_data_source = dbutils.widgets.get("p_data_source")
+dbutils.widgets.text("p_file_date", "2021-03-21")
+v_file_date = dbutils.widgets.get("p_file_date")
 
 # COMMAND ----------
 
@@ -38,7 +38,7 @@ custom_schema = StructType(
 
 # COMMAND ----------
 
-circuits_df = spark.read.csv(f"{raw_folder_path}/circuits.csv" , header=True, schema=custom_schema)
+circuits_df = spark.read.csv(f"{raw_folder_path}/{v_file_date}/circuits.csv" , header=True, schema=custom_schema)
 # circuits_df.show(5)
 
 # COMMAND ----------
@@ -55,7 +55,8 @@ circuits_df = circuits_df.withColumnRenamed("circuitId", "circuit_id") \
     .withColumnRenamed("lat", "latitude") \
     .withColumnRenamed("lng","longitude") \
     .withColumnRenamed("alt","altitude") \
-    .withColumn("data_source", lit(v_data_source))
+    .withColumn("data_source", lit(v_data_source))\
+    .withColumn("file_date", lit(v_file_date))
 
 # COMMAND ----------
 
@@ -63,11 +64,11 @@ circuits_df = add_ingestion_date(circuits_df)
 
 # COMMAND ----------
 
-circuits_df.write.mode("overwrite").parquet(f"{processed_folder_path}/circuits")
+circuits_df.write.mode("overwrite").format("delta").saveAsTable("f1_processed.circuits")
 
 # COMMAND ----------
 
-# df = spark.read.parquet(f"{processed_folder_path}/circuits")
+# df = spark.read.format("delta").load(f"{processed_folder_path}/circuits")
 # display(df)
 
 # COMMAND ----------

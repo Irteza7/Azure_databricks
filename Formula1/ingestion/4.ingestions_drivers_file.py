@@ -17,6 +17,11 @@ v_data_source = dbutils.widgets.get("p_data_source")
 
 # COMMAND ----------
 
+dbutils.widgets.text("p_file_date", "2021-03-21")
+v_file_date = dbutils.widgets.get("p_file_date")
+
+# COMMAND ----------
+
 from pyspark.sql.types import StringType, StructField, StructType, IntegerType, DoubleType, TimestampType, DateType
 
 name_schema = StructType(fields=[StructField("forename", StringType(), True), StructField("surname", StringType(), True)])
@@ -33,7 +38,7 @@ custom_schema = StructType(
 
 # COMMAND ----------
 
-drivers_df = spark.read.json(f"{raw_folder_path}/drivers.json", schema=custom_schema)
+drivers_df = spark.read.json(f"{raw_folder_path}/{v_file_date}/drivers.json", schema=custom_schema)
 drivers_df.show(5)
 
 # COMMAND ----------
@@ -46,6 +51,7 @@ drivers_df = drivers_df.withColumnRenamed("driverId", "driver_id") \
     .withColumnRenamed("driverRef","driver_ref") \
     .withColumn("name", concat(col("name.forename"), lit(" "), col("name.surname")))\
     .withColumn("data_source", lit(v_data_source)) \
+    .withColumn("file_date", lit(v_file_date)) \
     .drop("url")
 
 # COMMAND ----------
@@ -58,7 +64,7 @@ display(drivers_df)
 
 # COMMAND ----------
 
-drivers_df.write.mode("overwrite").parquet(f"{processed_folder_path}/drivers")
+drivers_df.write.mode("overwrite").format("delta").saveAsTable("f1_processed.drivers")
 
 # COMMAND ----------
 

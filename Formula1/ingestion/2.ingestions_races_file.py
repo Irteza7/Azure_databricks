@@ -17,6 +17,11 @@ v_data_source = dbutils.widgets.get("p_data_source")
 
 # COMMAND ----------
 
+dbutils.widgets.text("p_file_date", "2021-03-21")
+v_file_date = dbutils.widgets.get("p_file_date")
+
+# COMMAND ----------
+
 from pyspark.sql.types import StringType, StructField, StructType, IntegerType, DoubleType, TimestampType, DateType
 
 custom_schema = StructType(
@@ -32,7 +37,7 @@ custom_schema = StructType(
 
 # COMMAND ----------
 
-races_df = spark.read.csv(f"{raw_folder_path}/races.csv", header=True, schema=custom_schema)
+races_df = spark.read.csv(f"{raw_folder_path}/{v_file_date}/races.csv", header=True, schema=custom_schema)
 races_df.show(5)
 
 # COMMAND ----------
@@ -46,6 +51,7 @@ races_df = races_df.withColumnRenamed("raceId", "race_id") \
     .withColumnRenamed("circuitId", "circuit_id") \
     .withColumn("race_timestamp", to_timestamp(concat(col("date"), lit(" "), col("time")), "yyyy-MM-dd HH:mm:ss"))\
     .withColumn("data_source", lit(v_data_source)) \
+    .withColumn("file_date", lit(v_file_date)) \
     .drop("date","time", "url")
 
 # COMMAND ----------
@@ -54,11 +60,12 @@ races_df = add_ingestion_date(races_df)
 
 # COMMAND ----------
 
-races_df.write.mode("overwrite").parquet(f"{processed_folder_path}/races")
+races_df.write.mode("overwrite").format("delta").saveAsTable("f1_processed.races")
 
 # COMMAND ----------
 
 # df = spark.read.parquet(f"{processed_folder_path}/races")
+# df = spark.read.format("delta").load(f"{processed_folder_path}/circuits")
 # display(df)
 
 # COMMAND ----------

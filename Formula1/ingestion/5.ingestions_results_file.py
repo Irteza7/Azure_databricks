@@ -17,6 +17,11 @@ v_data_source = dbutils.widgets.get("p_data_source")
 
 # COMMAND ----------
 
+dbutils.widgets.text("p_file_date", "2021-03-21")
+v_file_date = dbutils.widgets.get("p_file_date")
+
+# COMMAND ----------
+
 # results_df = spark.read.json(f"{raw_folder_path}/results.json", multiLine=False,)
 # # results_df.show(5)
 
@@ -32,7 +37,7 @@ custom_schema = "resultId INT, raceId INT, driverId INT, constructorId INT, numb
 
 # COMMAND ----------
 
-results_df = spark.read.json(f"{raw_folder_path}/results.json", multiLine=False, schema=custom_schema)
+results_df = spark.read.json(f"{raw_folder_path}/{v_file_date}/results.json", multiLine=False, schema=custom_schema)
 # results_df.show(5)
 
 # COMMAND ----------
@@ -55,6 +60,7 @@ results_df = results_df.withColumnRenamed("resultId", "result_id") \
     .withColumnRenamed("fastestLapTime","fastest_lap_time") \
     .withColumnRenamed("fastestLapSpeed","fastest_lap_speed") \
     .withColumn("data_source", lit(v_data_source)) \
+    .withColumn("file_date", lit(v_file_date)) \
     .drop("statusId")
 
 # COMMAND ----------
@@ -69,7 +75,32 @@ results_df = add_ingestion_date(results_df)
 
 # COMMAND ----------
 
-results_df.write.mode("overwrite").partitionBy("race_id").parquet(f"{processed_folder_path}/results")
+# MAGIC %md
+# MAGIC #### Method 1
+
+# COMMAND ----------
+
+# for race_id_list in results_df.select("race_id").distinct().collect():
+#     if (spark._jsparkSession.catalog().tableExists("f1_processed.results")):
+#         spark.sql("ALTER TABLE f1_processed.results DROP IF EXISTS PARTITION (race_id={race_id_list.race_id}")
+
+# COMMAND ----------
+
+# results_df.write.mode("append").partitionBy("race_id").format("parquet").saveAsTable("f1_processed.results")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC #### Method 2
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- DROP TABLE f1_processed.results;
+
+# COMMAND ----------
+
+df_inc_write_to_table("f1_processed","results",results_df,"race_id")
 
 # COMMAND ----------
 
@@ -79,3 +110,13 @@ results_df.write.mode("overwrite").partitionBy("race_id").parquet(f"{processed_f
 # COMMAND ----------
 
 dbutils.notebook.exit("Success")
+
+# COMMAND ----------
+
+# %sql
+# SELECT count(*) FROM f1_processed.results WHERE file_date="2021-04-18"
+
+
+# COMMAND ----------
+
+
